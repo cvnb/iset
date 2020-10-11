@@ -1,0 +1,8 @@
+;;; iset.meta -*- Scheme -*-
+
+((category data)
+ (synopsis "Integer sets")
+ (license "BSD")
+ (author "Alex Shinn")
+ (test-dependencies test)
+ (components (extension iset)))
