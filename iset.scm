@@ -147,55 +147,31 @@
 ;; (iset-xor! is1 ...)                   ; char-set-xor!
 ;; (iset-diff+intersection! is1 is2 ...) ; char-set-diff+intersection!
 
-(module iset
- (
-  ;; bit-vectors
-  make-bit-vector integer->bit-vector bit-vector-copy
-  bit-vector? bit-vector-empty? bit-vector-full?
-  bit-vector-ref bit-vector-set bit-vector-set!
-  bit-vector-count bit-vector-length bit-vector-shift bit-vector-shift!
-  bit-vector-and bit-vector-and! bit-vector-ior bit-vector-ior!
-  bit-vector-xor bit-vector-xor! bit-vector-eqv bit-vector-eqv!
-  bit-vector-nand bit-vector-nand! bit-vector-nor bit-vector-nor!
-  ;; isets
-  make-iset iset iset? iset-copy list->iset list->iset! iset->list
-  iset= iset<= iset>= iset-start iset-end iset-bits iset-left iset-right
-  set-iset-start! set-iset-end! set-iset-bits! set-iset-left! set-iset-right!
-  iset-empty? iset-contains? iset-adjoin iset-adjoin! iset-delete iset-delete!
-  iset-cursor iset-ref iset-cursor-next end-of-iset?
-  iset-fold iset-unfold iset-unfold! iset-for-each iset-map
-  iset-filter iset-filter! iset-every iset-any iset-size
-  iset-union! iset-union iset-intersection! iset-intersection
-  iset-difference! iset-difference iset-xor! iset-xor
-  iset-diff+intersection! iset-diff+intersection
-  ;; low-level utilities
-  %make-iset iset-dump iset-write-code
-  iset-balance iset-balance! iset-optimize iset-optimize!
-  )
-
- (import scheme (chicken base) (chicken port) (chicken fixnum) (chicken bitwise) (chicken format) srfi-4)
- 
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; u8vector utils
 
-(cond-expand
- ((and chicken compiling)
-  (declare
-   (foreign-declare 
-    "#define C_u8peek(b, i) C_fix(((unsigned char *)C_data_pointer(b))[ C_unfix(i) ])
-     #define C_u8poke(b, i, x) ((((unsigned char *)C_data_pointer(b))[ C_unfix(i) ] = C_unfix(x)), C_SCHEME_UNDEFINED)"))
-  (define (u8-ref v i)
-    (##core#inline "C_u8peek" (##core#inline "C_slot" v 1) i))
-  (define (u8-set! v i x)
-    (##core#inline "C_u8poke" (##core#inline "C_slot" v 1) i x)))
- (else
-  (define-inline (u8-ref v i) (u8vector-ref v i))
-  (define-inline (u8-set! v i x) (u8vector-set! v i x))))
+;; (cond-expand
+;;  ((and chicken compiling)
+;;   (declare
+;;    (foreign-declare
+;;     "#define C_u8peek(b, i) C_fix(((unsigned char *)C_data_pointer(b))[ C_unfix(i) ])
+;;      #define C_u8poke(b, i, x) ((((unsigned char *)C_data_pointer(b))[ C_unfix(i) ] = C_unfix(x)), C_SCHEME_UNDEFINED)"))
+;;   (define (u8-ref v i)
+;;     (##core#inline "C_u8peek" (##core#inline "C_slot" v 1) i))
+;;   (define (u8-set! v i x)
+;;     (##core#inline "C_u8poke" (##core#inline "C_slot" v 1) i x)))
+;;  (else
+;;   (define-inline (u8-ref v i) (u8vector-ref v i))
+;;   (define-inline (u8-set! v i x) (u8vector-set! v i x))))
+
+;; until define-inline's equivalent is figured out
+(def (u8-ref v i) (u8vector-ref v i))
+(def (u8-set! v i x) (u8vector-set! v i x))
 
 ;; from SRFI-43 vector-copy!
 (define (u8vector-copy! dst off src . opt)
-  (let-optionals* opt ((start 0) (end (u8vector-length src)))
+  ;; (let-optionals* opt ((start 0) (end (u8vector-length src)))
+  (let ((start 0) (end (u8vector-length src))) ;; TODO, handle opt
     (do ((i start (+ i 1))
          (j off (+ j 1)))
         ((= i end))
@@ -203,7 +179,8 @@
 
 ;; from SRFI-43 vector-fill!
 (define (u8vector-fill! vec fill . opt)
-  (let-optionals* opt ((start 0) (end (u8vector-length vec)))
+  ;; (let-optionals* opt ((start 0) (end (u8vector-length vec)))
+  (let ((start 0) (end (u8vector-length src))) ;; TODO, handle opt
     (do ((i start (+ i 1)))
         ((= i end))
       (u8vector-set! vec i fill))))
@@ -275,16 +252,21 @@
 
 ;; these all return non-negative values in [0..255]
 
-(define-inline (byte-not x)
+;; TODO, define-inline
+;; (define-inline (byte-not x)
+(def (byte-not x)
   (- #b11111111 x))
 
-(define-inline (byte-eqv a b)
+;; (define-inline (byte-eqv a b)
+(def (byte-eqv a b)
   (byte-not (fxxor a b)))
 
-(define-inline (byte-nand a b)
+;; (define-inline (byte-nand a b)
+(def (byte-nand a b)
   (byte-not (fxand a b)))
 
-(define-inline (byte-nor a b)
+;; (define-inline (byte-nor a b)
+(def (byte-nor a b)
   (byte-not (fxior a b)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -540,8 +522,9 @@
   (left  iset-left  set-iset-left!)
   (right iset-right set-iset-right!))
 
-(define-constant *bits-thresh* 128)  ; within 128 we join into a bit-vector
-(define-constant *bits-max* 512)     ; don't make bit-vectors larger than this
+;; TODO, define-constant
+(define *bits-thresh* 128)  ; within 128 we join into a bit-vector
+(define *bits-max* 512)     ; don't make bit-vectors larger than this
 
 (define (make-iset . opt)
   (let-optionals* opt ((start 0)
@@ -581,7 +564,9 @@
 ;     (iset-set-node! a b)
 ;     (iset-set-node! b tmp)))
 
-(define-inline (iset2<= a b)
+;; TODO, define-inline
+;; (define-inline (iset2<= a b)
+(define (iset2<= a b)
   (iset-every (lambda (i) (iset-contains? b i)) a))
 
 (define (iset<= . args)
@@ -1295,4 +1280,3 @@
 ;             (set! p-end end)))
 ;         iset))
 ;      #t)))
-)
